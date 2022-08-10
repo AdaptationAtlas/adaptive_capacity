@@ -1,11 +1,10 @@
-DataDir<-"/home/jovyan/common_data"
-SaveDir<-paste0(DataDir,"/aqueduct_3/raw")
+SaveDir<-"/home/jovyan/common_data/mob_net_perf_ookla/raw"
 
-URLS<-c("https://wri-projects.s3.amazonaws.com/Aqueduct30/finalData/Y2019M07D12_Aqueduct30_V01.zip")
+URLS<-c("https://ookla-open-data.s3.amazonaws.com/shapefiles/performance/type=mobile/year=2022/quarter=2/2022-04-01_performance_mobile_tiles.zip")
 
-destfiles<-paste0(SaveDir,"/aqueduct_3.zip")
+destfiles<-paste0(SaveDir,"/2022-04-01_performance_mobile_tiles.zip")
 
-options(timeout=480)
+options(timeout=480*2)
 
 for(i in 1:length(URLS)){
     URL<-URLS[i]
