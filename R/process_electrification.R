@@ -59,10 +59,19 @@ elec_na_pr_wp<-elec_na/population20_wp
 
 # Seems to be a mismatch in the layers where elec_na has people with no access to power but the population layers indicate far less human population
 terra::plot(elec_na_pr_ls)
-hist(elec_na_pr_ls[])
+hist(elec_na_pr_ls[!elec_na_pr_ls>=1])
+hist(elec_na_pr_ls[elec_na_pr_ls>1])
+X<-elec_na_pr_ls[]
+length(X[X>1 & !is.na(X) & !is.infinite(X)])/length(X[!is.na(X) & !is.infinite(X)])
+length(X[is.infinite(X)])/length(X[!is.na(X)])
 
 terra::plot(elec_na_pr_wp)
-hist(elec_na_pr_wp[])
+hist(elec_na_pr_wp[!elec_na_pr_wp>=1])
+hist(elec_na_pr_wp[elec_na_pr_wp>1])
+X<-elec_na_pr_wp[]
+
+length(X[X>1 & !is.na(X) & !is.infinite(X)])/length(X[!is.na(X) & !is.infinite(X)])
+length(X[is.infinite(X)])/length(X[!is.na(X)])
 
 # We can try setting values >1 to 1, but what is the validity of this approach?
 elec_na_pr_ls[elec_na_pr_ls>1]<-1
