@@ -9,7 +9,6 @@ DataDir<-"/home/jovyan/common_data"
 sh_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadml0_4326_agg.shp"))
 sh_africa<-terra::simplifyGeom(sh_africa, tolerance=0.1)
 
-
 # Read in ookla data
 OoklaDir<-paste0(DataDir,"/mob_net_perf_ookla/raw")
 OoklaDirInt<-paste0(DataDir,"/mob_net_perf_ookla/intermediate")
@@ -17,10 +16,11 @@ if(!dir.exists(OoklaDirInt)){
     dir.create(OoklaDirInt)
     }
 
-mnp<-terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
 
-# Crop and mask to SSA
-sh_africa<-terra::project(sh_africa,terra::crs(mnp))
+# Ani's code
+mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
+
+
 
 # Ookla approach
 # https://github.com/teamookla/ookla-open-data/blob/master/tutorials/aggregate_by_county.md
@@ -35,3 +35,4 @@ tiles <- sf::read_sf(paste0(OoklaDir,"/gps_mobile_tiles.shp")) %>%
 sh_africa<-sf::st_as_sf(sh_africa)
 
 tiles_in_af <- sf::st_join(sh_africa, tiles, left = FALSE)
+

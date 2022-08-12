@@ -2,7 +2,7 @@ require(terra)
 
 # Root of file structure
 DataDir<-"/home/jovyan/common_data"
-AqueDir<-paste0(DataDir,"/aqueduct_3/raw/Y2019M07D12_Aqueduct30_V01")
+AqueDir<-paste0(DataDir,"/atlas_aqueduct_3/raw/Y2019M07D12_Aqueduct30_V01")
 
 # Read in boundary of subsaharan africa
 sh_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadml0_4326_agg.shp"))

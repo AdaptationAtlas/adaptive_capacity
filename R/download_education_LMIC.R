@@ -1,4 +1,10 @@
-SaveDir<-"/home/jovyan/common_data/atlas/raw/3_adaptivecapacity/education_LMIC"
+DataDir<-"/home/jovyan/common_data/"
+
+SaveDir<-paste0(DataDir,"/atlas_education_LMIC/raw"
+                
+if(!dir.exists(SaveDir)){
+    dir.create(SaveDir)
+    }
 
 Files<- "Data.zip"
 

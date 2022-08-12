@@ -1,4 +1,10 @@
-SaveDir<-"/home/jovyan/common_data/atlas/raw/3_adaptivecapacity/electrification"
+DataDir<-"/home/jovyan/common_data/"
+
+SaveDir<-paste0(DataDir,"/atlas_electrification/raw"
+                
+if(!dir.exists(SaveDir)){
+    dir.create(SaveDir)
+    }
 
 URLS<-"https://md-datasets-cache-zipfiles-prod.s3.eu-west-1.amazonaws.com/kn4636mtvg-6.zip"
 

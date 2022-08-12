@@ -1,5 +1,11 @@
-SaveDir<-"/home/jovyan/common_data/atlas/raw/3_adaptivecapacity/relative_wealth"
+DataDir<-"/home/jovyan/common_data/"
 
+SaveDir<-paste0(DataDir,"/atlas_relative_wealth/raw"
+                
+if(!dir.exists(SaveDir)){
+    dir.create(SaveDir)
+    }
+                
 URLS<-"https://data.humdata.org/dataset/76f2a2ea-ba50-40f5-b79c-db95d668b843/resource/de2f953e-940c-43bb-b1f8-4d02d28124b5/download/relative-wealth-index-april-2021.zip"
 
 destfiles<-paste0(SaveDir,"/relative_wealth.zip")
