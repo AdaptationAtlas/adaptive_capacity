@@ -4,7 +4,7 @@ require(terra)
 DataDir<-"/home/jovyan/common_data"
 
 # dhs data location
-DHSDir<-paste0(DataDir,"/atlas_dhs/intermediate")
+DataDirInt<-paste0(DataDir,"/atlas_dhs/intermediate")
 
 # Read in admin1 for subsaharan africa
 adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
@@ -14,15 +14,15 @@ base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YA
 base_raster<-terra::crop(base_raster,adm1_africa)
 
 # Read in DHS data
-dhs_data<- read.csv(paste0(DHSDir,"/data.csv"))
+dhs_data<- read.csv(paste0(DataDirInt,"/data.csv"))
 
 dhs_polys<-merge(adm1_africa,dhs_data,all.x=TRUE, by.x='HASC_1', by.y='HASC_1')
 
 fields<-colnames(dhs_data)
 fields<-fields[!grepl("HASC_1|ISO3",fields)]
 
-dhs_data<-terra::rast(lapply(fields,FUN=function(FIELD){
-    File<-paste0(DHSDir,"/",FIELD,".tif")
+data<-terra::rast(lapply(fields,FUN=function(FIELD){
+    File<-paste0(DataDirInt,"/",FIELD,".tif")
     if(!file.exists(File)){
         X<-terra::rasterize(dhs_polys,base_raster,field=FIELD)
         names(X)<-FIELD
@@ -34,24 +34,38 @@ dhs_data<-terra::rast(lapply(fields,FUN=function(FIELD){
 }))
 
 # Generate terciles
+Overwrite<-T
 
-dhs_data_terciles<-terra::rast(lapply(names(dhs_data),FUN=function(FIELD){
+data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     
-    File<-paste0(DHSDir,"/",FIELD,"_terciles.tif")
+    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
     
-    if(!file.exists(File)){
-        X<-dhs_data[[FIELD]]
+    if((!file.exists(File))|Overwrite){
+        X<-data[[FIELD]]
         vTert = quantile(X[], c(0:3/3),na.rm=T)
+        Intervals<-data.frame(Intervals=apply(cbind(c("high","medium","low"),round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
+        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
         Terciles<-cut(X[],
                       vTert, 
                       include.lowest = T, 
                       labels = c(0,1,2))
         X[]<-as.numeric(Terciles)-1
         levels(X)<-c("low","medium","high")    
-        suppressWarnings(terra::writeRaster(X,file=File))
+        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
         X
         }else{
             terra::rast(File)
     }
 }))
 
+# create subdirectory for atlas specific files
+DHSDir2<-paste0(DataDir,"/atlas_dhs/intermediate/atlas_subset")
+if(!dir.exists(DHSDir2)){
+    dir.create(DHSDir2)
+}
+
+Files<-list.files(DataDirInt,full.names=T,recursive=F)
+Files<-grep("decisions_2015|index_2015",Files,value=T)
+
+
+file.copy(Files, DHSDir2)
