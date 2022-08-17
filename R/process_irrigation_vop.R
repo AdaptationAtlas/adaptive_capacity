@@ -6,7 +6,7 @@ require(terra)
 DataDir<-"/home/jovyan/common_data"
 
 # Create intermediate directory
-DataDirInt<-paste0(DataDir,"/mapspam_2017/intermediate/atlas_irrigation")
+DataDirInt<-paste0(DataDir,"/atlas_mapspam/intermediate/irrigation")
 if(!dir.exists(DataDirInt)){
     dir.create(DataDirInt,recursive=T)
     }
@@ -49,17 +49,70 @@ tot_area<-terra::mask(terra::crop(tot_area,sh_africa),sh_africa)
 tot_area<-sum(tot_area)
 
 # Calculate % of total area that is irrigated
-data<-100*irr_area/tot_area
-names(data)<-"irrigated_area"
-terra::writeRaster(data,paste0(DataDirInt,"/irrigation.tif"),overwrite=T)
+irrig_pr<-100*irr_area/tot_area
+names(irrig_pr)<-"irrig_prop"
+# terra::writeRaster(irrig_pr,paste0(DataDirInt,"/irrig_prop.tif"),overwrite=T)
 
-data[data==0]<-NA
+irrig_pr[irrig_pr==0]<-NA
+
+# Classify irrigated area into terciles
+
+Values<-c(low=1,medium=2,high=3)
+
+irrig_pr_cl<-data
+vTert = quantile(irrig_pr_cl[], c(0:3/3),na.rm=T)
+Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
+Terciles<-cut(irrig_pr_cl[],
+              vTert, 
+              include.lowest = T, 
+              labels = Values)
+irrig_pr_cl[]<-as.numeric(Terciles)
+
+N<-!is.na(tot_area[]) & is.na(irrig_pr_cl[])
+irrig_pr_cl[][N]<-0
+
+terra::plot(irrig_pr_cl)
+
 
 # Read in water stress
+# see https://github.com/AdaptationAtlas/adaptive_capacity/blob/main/R/process_aqueduct.R for how to generate the layer below
+wstress<-terra::rast(paste0(DataDir,"/atlas_aqueduct_3/intermediate/bws_cat.tif"))
+terra::plot(wstress)
+
+# Reclassify into three classes + zero
+# -1 Arid and Low Water Use  -> 0 (not applicable)
+# 0 Low (<10%) = 10 (low capacity) -> 30 (high capacity)    
+# 1 Low - Medium (10-20%) -> 30 (high capacity)
+# 2 Medium - High (20-40%) -> 20 (medium capacity)
+# 3 High (40-80%) -> 10 (low capacity)
+# 4 Extremely High (>80%) -> 10 (low capacity)
+
+wstress_cl<-classify(wstress,cbind(-1:4,c(0,30,30,20,10,10)))
+
+# Combine two classifications
+irrig_wstress<-irrig_pr_cl+wstress_cl
+names(irrig_wstress)<-"irrig_comb"
+terra::plot(irrig_wstress)
+# No irrigation = 0 (low)
+# Arid = NA
+# Irrigation>0 then classification depends on water stress 10 = 0 (high stress, low capacity), 20 = 1(moderate stress, med capacity), 30 = 2 (low stress high capacity)
+irrig_wstress_cl<-terra:::classify(irrig_wstress,
+                                   cbind(c(0,10,20,30,1,11,21,31,2,12,22,32,3,13,23,33),
+                                         c(NA,0,0,0,NA,0,1,2,NA,0,1,2,NA,0,1,2)))
+
+
+names(irrig_wstress_cl)<-"irrigation_suitability"
+terra::writeRaster(irrig_wstress_cl,paste0(DataDirInt,"/irrigation.tif"),overwrite=T)
 
 
 
-# Generate two classes
+terra::plot(c(irrig_pr,wstress))
+terra::plot(c(irrig_pr_cl,wstress_cl))
+terra::plot(irrig_wstress_cl)
+
+# Not run
+if(F){
+# Generate two classes from irrigated area data
 Overwrite<-T
 # Adaptive capacity is classified thus: high = good, low = bad
 Invert<-F
@@ -97,3 +150,4 @@ data_terciles[][N]<-0
 levels(data_terciles)<-c("low","medium","high")
 terra::plot(data_terciles)
 suppressWarnings(terra::writeRaster(data_terciles,file=paste0(DataDirInt,"/",names(data_terciles),"_terciles.tif"),overwrite=T))
+}

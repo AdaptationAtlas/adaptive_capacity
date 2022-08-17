@@ -1,38 +1,90 @@
 install.packages("slippymath")
 require(slippymath)
 require(terra)
+options(scipen=999)
 
 # Set raw and intermediate directories for ookla data
 DataDir<-"/home/jovyan/common_data"
 
-# Read in boundary of sub-saharan africa
-sh_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadml0_4326_agg.shp"))
-sh_africa<-terra::simplifyGeom(sh_africa, tolerance=0.1)
-
-# Read in ookla data
-OoklaDir<-paste0(DataDir,"/mob_net_perf_ookla/raw")
-OoklaDirInt<-paste0(DataDir,"/mob_net_perf_ookla/intermediate")
-if(!dir.exists(OoklaDirInt)){
-    dir.create(OoklaDirInt)
+# Create intermediate directory
+DataDirInt<-paste0(DataDir,"/atlas_ookla/intermediate")
+if(!dir.exists(DataDirInt)){
+    dir.create(DataDirInt)
     }
 
+# Read in admin1 for subsaharan africa
+adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
 
-# Ani's code
+# Read in a base raster
+base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
+base_raster<-terra::crop(base_raster,adm1_africa)
+
+# Read in ookla data
+OoklaDir<-paste0(DataDir,"/atlas_ookla/raw")
+
 mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
+mnp_centroids<-terra::centroids(mnp)
+mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
 
+mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_kbps",fun=mean)
+names(mnp_rast)<-"avg_d_kbps"
+terra::plot(mnp_centroids)
 
+mnp_rast_pr<-terra::project(mnp_rast,"+proj=merc +datum=WGS84 +units=km")
+# Convert rasterized data back to points
+mnp_points<-as.points(mnp_rast_pr, values=TRUE, na.rm=TRUE)
 
-# Ookla approach
-# https://github.com/teamookla/ookla-open-data/blob/master/tutorials/aggregate_by_county.md
-require(sf)
-require(tidyverse)
+# inverse distance weighted interpolation
+dat2 <- data.frame(geom(mnp_points)[, c("x", "y")], as.data.frame(mnp_points))
 
-tiles <- sf::read_sf(paste0(OoklaDir,"/gps_mobile_tiles.shp")) %>%
-  mutate(avg_d_kbps = as.numeric(avg_d_kbps),
-         avg_u_kbps = as.numeric(avg_u_kbps),
-         avg_lat_ms = as.numeric(avg_lat_ms))
+gs <- gstat::gstat(formula=avg_d_kbps~1, locations=~x+y, data=dat2)
+mnp <- terra::interpolate(mnp_rast_pr, gs, debug.level=0)
+mnp<-mnp[[1]]
 
-sh_africa<-sf::st_as_sf(sh_africa)
+mnp_rp<-terra::project(mnp,crs(mnp_rast))
+mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)
+names(mnp_rp)<-"dl_speed"
+terra::plot(mnp_rp)
 
-tiles_in_af <- sf::st_join(sh_africa, tiles, left = FALSE)
+terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
+data<-mnp_rp
+
+# Generate terciles
+Overwrite<-T
+# Adaptive capacity is classified thus: high = good, low = bad
+# High download speed is better, lower tercile = bad, upper tercile = good 
+Invert<-F
+
+Labels<-c("low","medium","high")
+Values<-c(0,1,2)
+
+data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
+    
+    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
+    
+    if((!file.exists(File))|Overwrite){
+        X<-data[[FIELD]]
+        vTert = quantile(X[], c(0:3/3),na.rm=T)
+
+       Levels<-if(Invert){Labels[length(Labels):1]}else{Labels}
+                
+        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
+        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
+        
+        Terciles<-cut(X[],
+                      vTert, 
+                      include.lowest = T, 
+                      labels = Values)
+        
+        X[]<-as.numeric(Terciles)-1
+        levels(X)<-  Levels  
+        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
+        X
+        }else{
+            terra::rast(File)
+    }
+}))
+
+terra::plot(c(data,data_terciles))
+
 

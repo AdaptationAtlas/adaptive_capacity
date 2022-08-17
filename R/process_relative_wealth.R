@@ -12,7 +12,6 @@ devtools::source_url("https://github.com/AdaptationAtlas/adaptive_capacity/blob/
 adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
 adm1_iso3<-unique(adm1_africa$GID_0)
 
-
 # Read in a base raster
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)

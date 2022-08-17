@@ -37,9 +37,16 @@ types<-data.frame(Type=c("_raw","_score","_label","_cat"),
                   Data_Type=c("double","double","string","integer"),
                   Description=c("raw value. Units depend on the indicator. See the technical note.","each indicator is mapped to a [0-5] scale.","A label explaining the category of the indicator including threshold. e.g. Extremely High (more than 1 in 100).","integer for each category [-1,4], can be used for visuals."))
 
-(base_water_stress<-grep("bws",colnames(data),value=T))
-
 # Convert bws to raster
-bws<-terra::rasterize(aqueduct_cr,base_rast,field="bws_label")
-terra::writeRaster(bws,file=paste0(AqueDirInt,"/bws.tif"))
-terra::plot(bws)
+unique(data.frame(aqueduct_cr)[,c("bws_cat","bws_label")])
+
+bws_cat<-terra::rasterize(aqueduct_cr,base_rast,field="bws_cat")
+terra::writeRaster(bws_cat,file=paste0(AqueDirInt,"/bws_cat.tif"),overwrite=T)
+
+bws_score<-terra::rasterize(aqueduct_cr,base_rast,field="bws_score")
+terra::writeRaster(bws_score,file=paste0(AqueDirInt,"/bws_score.tif"),overwrite=T)
+
+bws_raw<-terra::rasterize(aqueduct_cr,base_rast,field="bws_raw")
+terra::writeRaster(bws_raw,file=paste0(AqueDirInt,"/bws_raw.tif"),overwrite=T)
+
+terra::plot(c(bws_raw,bws_cat,bws_score))
