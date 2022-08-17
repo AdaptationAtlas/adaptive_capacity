@@ -33,6 +33,10 @@ lapply(names(data),FUN=function(FIELD){
 
 Overwrite<-T
 
+# Adaptive capacity is classified thus: high = good, low = bad
+# Low stunting is better, lower tercile = good, upper tercile = bad 
+Levels<-c("high","medium","low")
+
 data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     
     File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
@@ -40,17 +44,19 @@ data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     if((!file.exists(File))|Overwrite){
         X<-data[[FIELD]]
         vTert = quantile(X[], c(0:3/3),na.rm=T)
-        Intervals<-data.frame(Intervals=apply(cbind(c("high","medium","low"),round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
+        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
         write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
         Terciles<-cut(X[],
                       vTert, 
                       include.lowest = T, 
                       labels = c(0,1,2))
         X[]<-as.numeric(Terciles)-1
-        levels(X)<-c("low","medium","high")    
+        levels(X)<-Levels 
         suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
         X
         }else{
             terra::rast(File)
     }
 }))
+
+terra::plot(data_terciles)

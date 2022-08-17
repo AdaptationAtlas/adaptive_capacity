@@ -3,6 +3,12 @@ require(terra)
 # Root of file structure
 DataDir<-"/home/jovyan/common_data"
 
+# Create intermediate directory
+DataDirInt<-paste0(DataDir,"/atlas_electrification/intermediate")
+if(!dir.exists(DataDirInt)){
+    dir.create(DataDirInt)
+    }
+
 # Read in admin1 for subsaharan africa
 adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
 
@@ -16,13 +22,21 @@ base_raster<-terra::crop(base_raster,adm1_africa)
 
 # Load electrification data
 # See https://www.nature.com/articles/s41597-019-0122-6 for methods
-elec_na<-terra::rast(paste0(DataDir,"/atlas_electrification/raw/noaccess_SSA_2014_2020.nc"))
-
 elec_tier<-terra::rast(paste0(DataDir,"/atlas_electrification/raw/tiersofaccess_SSA_2018.nc"))
-elec_tier<-terra::resample(elec_tier,base_raster,method="mode")
-elec_tier<-terra::mask(terra::crop(elec_tier,base_raster),base_raster)
+elec_tier_rs<-terra::resample(elec_tier,base_raster,method="mode")
+elec_tier_rs<-terra::mask(terra::crop(elec_tier_rs,adm1_africa),adm1_africa)
+
+terra::writeRaster(elec_tier_rs,file=paste0(DataDirInt,"/elec_consumption_tiers.tif"),overwrite=T)
+terra::plot(elec_tier_rs)
+
+elec_tier_rs[elec_tier_rs==0]<-NA
 
 # The four tiers (1-4) are validated against survey data consistent with the World Bank Multi-Tier framework
+#Consumption tier
+#<0.2 KWh/hh/day
+#<1 KWh/hh/day
+#<3.4 KWh/hh/day
+#>3.4 KWh/hh/day
 
 # **********************************************
 # Population without access to electricity #####

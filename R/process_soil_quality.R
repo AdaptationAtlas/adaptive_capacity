@@ -16,6 +16,7 @@ sh_africa<-terra::simplifyGeom(sh_africa, tolerance=0.1)
 
 # Atlas base raster to resample to
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_V_ACOF_A.tif"))
+base_raster<-terra::crop(terra::mask(base_raster,sh_africa),sh_africa)
 
 # Layers to resample
 ISDA_vars<-c("p","k","n","fe","zn","mg","ecec","oc")
@@ -46,8 +47,9 @@ names(sn_stack)<-gsub("_mehlich3","",gsub("_2001..2017_v0.13_wgs84","",gsub("_m_
 sn_stack<-terra::rast(lapply(names(sn_stack),FUN=function(LAYER){
     if(!grepl("log.n",LAYER)){
         X<-sn_stack[LAYER]
-        X<-expm1(X/10)
-        names(X)<-gsub("log","ppm",LAYER)
+        X<-expm1(X/10) # computes exp(x) - 1 accurately also for |x| << 1.
+                
+        names(X)<-if(grepl("log.oc",LAYER)){gsub("log","perc",LAYER)}else{gsub("log","ppm",LAYER)}
         X
     }else{
         sn_stack[LAYER]
@@ -79,9 +81,69 @@ thresholds<-list(avail_P=c(very_low=5,low=9,medium=17,high=25,very_high=9999), #
                  exch_K=c(very_low=0.2,low=0.3,medium=0.6,high=1.2,very_high=9999), # Exchangeable K cmol/kg - Table 11 https://www.fao.org/3/a0443e/a0443e.pdf p59
                  exch_Na=c(very_low=0.1,low=0.3,medium=0.7,high=2,very_high=9999), # Exchangeable Na cmol/kg - Table 11 https://www.fao.org/3/a0443e/a0443e.pdf p59
                  CEC=c(very_low=6,low=12,medium=25,high=40,very_high=9999), # Exchangeable CEC cmol/kg - Table 11 https://www.fao.org/3/a0443e/a0443e.pdf p59
-                 oc=c(very_low=1,low=2,medium=3,high=9999)
+                 oc=c(low=10,medium=20,high=9999) # Organic carbon g/kg - Pers comms Todd Rosenstock
                 ) 
 
+# *************************************************
+# Classify organic carbon
+# Fixed breaks
+oc_class<-terra::classify(sn_stack_wm$perc.oc,
+                         rcl=as.matrix(data.frame(from=c(0,thresholds$oc[1:2]),
+                                                  to=thresholds$oc,
+                                                  becomes=0:2)))
+levels(oc_class)<-names(thresholds$oc)
+terra::plot(oc_class)
+
+# Terciles
+data<-sn_stack_wm$perc.oc
+names(data)<-gsub("[.]","_",names(data))
+
+DataDirInt<-paste0(ISDADirInt,"/atlas_subset")
+if(!dir.exists(DataDirInt)){
+    dir.create(DataDirInt)
+    }
+
+terra::writeRaster(data,file=paste0(DataDirInt,"/",names(data),".tif"))
+
+Overwrite=T
+# Adaptive capacity is classified thus: high = good, low = bad
+# High soil carbon is better, lower tercile = bad, upper tercile = good 
+Invert<-F
+
+Labels<-c("low","medium","high")
+Values<-c(0,1,2)
+
+data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
+    
+    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
+    
+    if((!file.exists(File))|Overwrite){
+        X<-data[[FIELD]]
+        vTert = quantile(X[], c(0:3/3),na.rm=T)
+
+       Levels<-if(Invert){Labels[length(Labels):1]}else{Labels}
+                
+        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
+        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
+        
+        Terciles<-cut(X[],
+                      vTert, 
+                      include.lowest = T, 
+                      labels = Values)
+        
+        X[]<-as.numeric(Terciles)-1
+        levels(X)<-  Levels  
+        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
+        X
+        }else{
+            terra::rast(File)
+    }
+}))
+
+terra::plot(data_terciles)
+
+
+# *************************************************
 # Classify phosphorus
 P_class<-terra::classify(sn_stack_wm$ppm.p,
                          rcl=as.matrix(data.frame(from=c(0,thresholds$avail_P[1:4]),
