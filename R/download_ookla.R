@@ -1,4 +1,12 @@
-SaveDir<-"/home/jovyan/common_data/mob_net_perf_ookla/raw"
+# https://github.com/teamookla/ookla-open-data
+
+DataDir<-"/home/jovyan/common_data/"
+
+SaveDir<-paste0(DataDir,"/atlas_ookla/raw")
+                
+if(!dir.exists(SaveDir)){
+    dir.create(SaveDir,recursive=T)
+    }
 
 URLS<-c("https://ookla-open-data.s3.amazonaws.com/shapefiles/performance/type=mobile/year=2022/quarter=2/2022-04-01_performance_mobile_tiles.zip")
 
