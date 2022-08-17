@@ -1,6 +1,9 @@
 DataDir<-"/home/jovyan/common_data"
 SaveDir<-paste0(DataDir,"/aqueduct_3/raw")
 
+# https://www.wri.org/applications/aqueduct/water-risk-atlas
+# https://www.wri.org/research/aqueduct-30-updated-decision-relevant-global-water-risk-indicators
+
 URLS<-c("https://wri-projects.s3.amazonaws.com/Aqueduct30/finalData/Y2019M07D12_Aqueduct30_V01.zip")
 
 destfiles<-paste0(SaveDir,"/aqueduct_3.zip")

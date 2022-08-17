@@ -8,16 +8,11 @@ if(!dir.exists(SaveDir)){
 
 Files<- "Data.zip"
 
-URLS<-"https://cloud.ihme.washington.edu/index.php/download/"
+URL<-"https://cloud.ihme.washington.edu/index.php/download/"
    
 
 destfile<-paste0(SaveDir,"/",Files)
 options(timeout=480*2)
-
-# Display progress
-cat('\r                                                ')
-cat('\r',paste0("Downloading file: ",URL))
-flush.console()
 
 if(!file.exists(destfile)){
         download.file(URL, destfile)

@@ -1,7 +1,7 @@
 # Set raw and intermediate directories for ookla data
 DataDir<-"/home/jovyan/common_data"
 
-SaveDir<-past0(DataDir,"/atlas_accessiblity_to_healthcare/raw")
+SaveDir<-paste0(DataDir,"/atlas_accessiblity_to_healthcare/raw")
 
 if(!dir.exists(SaveDir)){
     dir.create(SaveDir)
