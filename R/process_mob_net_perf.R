@@ -23,29 +23,41 @@ base_raster<-terra::crop(base_raster,adm1_africa)
 OoklaDir<-paste0(DataDir,"/atlas_ookla/raw")
 
 mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
+
+# Convert tiles to points
 mnp_centroids<-terra::centroids(mnp)
+
+# Mask to sub-Saharan Africa
 mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
 
+terra::plot(mnp_centroids)
+hist(mnp_centroids$avg_d_kbps)
+
+# Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
 mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_kbps",fun=mean)
 names(mnp_rast)<-"avg_d_kbps"
-terra::plot(mnp_centroids)
 
+# Change to projected CRS
 mnp_rast_pr<-terra::project(mnp_rast,"+proj=merc +datum=WGS84 +units=km")
+
 # Convert rasterized data back to points
 mnp_points<-as.points(mnp_rast_pr, values=TRUE, na.rm=TRUE)
 
-# inverse distance weighted interpolation
+# Inverse distance weighted interpolation
 dat2 <- data.frame(geom(mnp_points)[, c("x", "y")], as.data.frame(mnp_points))
 
 gs <- gstat::gstat(formula=avg_d_kbps~1, locations=~x+y, data=dat2)
 mnp <- terra::interpolate(mnp_rast_pr, gs, debug.level=0)
 mnp<-mnp[[1]]
 
+# Convert back to lat/lon
 mnp_rp<-terra::project(mnp,crs(mnp_rast))
+# Crop and mask to SSA
 mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)
 names(mnp_rp)<-"dl_speed"
 terra::plot(mnp_rp)
 
+# Save data
 terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
 data<-mnp_rp
 
