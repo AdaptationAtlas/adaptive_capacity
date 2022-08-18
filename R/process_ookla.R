@@ -93,6 +93,10 @@ names(mnp_rp)<-"dl_speed"
 terra::plot(mnp_rp)
 terra::plot(log10(mnp_rp))
 
+# Save data
+terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
+data<-mnp_rp
+
 if(F){
 # Thin plate spline
 library(fields)
@@ -108,9 +112,6 @@ terra::plot(tps_rp)
 terra::plot(log10(tps_rp))
 }    
 
-# Save data
-terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
-data<-mnp_rp
 
 # Generate manual breakpoints
 m_reclass<-cbind(c(0,100,100000),c(100,100000,99999999),c(0,1,2))
