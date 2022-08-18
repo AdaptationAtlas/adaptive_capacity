@@ -1,5 +1,4 @@
-install.packages("slippymath")
-require(slippymath)
+require(gstat)
 require(terra)
 options(scipen=999)
 
@@ -33,6 +32,7 @@ mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
 mnp_centroids$avg_d_mbps<-mnp_centroids$avg_d_kbps/1000
 
 # explore dl speed data
+if(F){
 avg_d_mbps<-mnp_centroids$avg_d_mbps
 round(
     c(
@@ -46,15 +46,18 @@ round(
 terra::plot(mnp_centroids)
 hist(mnp_centroids$avg_d_mbps,breaks=100)
 hist(mnp_centroids$avg_d_mbps[mnp_centroids$avg_d_mbps<100],breaks=100)
+}
 
 # Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
 mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_mbps",fun=median)
 names(mnp_rast)<-"med_d_mbps"
+
+if(F){
+# re-explore dl speed data
 terra::plot(mnp_rast)
 hist(mnp_rast[],breaks=100)
 hist(mnp_rast[mnp_rast<100][],breaks=100)
-
-# re-explore dl speed data
+    
 avg_d_mbps<-mnp_rast[!is.na(mnp_rast)][]
 round(
     c(
@@ -65,24 +68,64 @@ round(
         perc_gt100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
     )
     ,2)
-
+}
 
 # Change to projected CRS
 mnp_rast_pr<-terra::project(mnp_rast,"+proj=merc +datum=WGS84 +units=km")
 
 # Convert rasterized data back to points
 mnp_points<-as.points(mnp_rast_pr, values=TRUE, na.rm=TRUE)
+
+if(F){
 terra::plot(mnp_points,"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 terra::plot(mnp_points[mnp_points$med_d_mbps<0.1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 terra::plot(mnp_points[mnp_points$med_d_mbps<1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 terra::plot(mnp_points[mnp_points$med_d_mbps>=1 & mnp_points$med_d_mbps<10],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 terra::plot(mnp_points[mnp_points$med_d_mbps>=10 & mnp_points$med_d_mbps<100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 terra::plot(mnp_points[mnp_points$med_d_mbps>=100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+}
 
 # Inverse distance weighted interpolation
 dat2 <- data.frame(geom(mnp_points)[, c("x", "y")], as.data.frame(mnp_points))
-
 gs <- gstat::gstat(formula=med_d_mbps~1, locations=~x+y, data=dat2)
+
+# Optimize IDW parameters - https://rspatial.org/terra/analysis/4-interpolation.html
+RMSE <- function(observed, predicted) {
+  sqrt(mean((predicted - observed)^2, na.rm=TRUE))
+}
+
+f1 <- function(x, test, train) {
+  nmx <- x[1]
+  idp <- x[2]
+  if (nmx < 1) return(Inf)
+  if (idp < .001) return(Inf)
+  m <- gstat::gstat(formula=med_d_mbps~1, locations=~x+y, data=train, nmax=nmx, set=list(idp=idp))
+  p <- predict(m, newdata=test, debug.level=0)$var1.pred
+  RMSE(test$med_d_mbps, p)
+}
+k<-100
+
+opt<-lapply(1:k,FUN=function(i){
+    i <- sample(nrow(mnp_points), 0.2 * nrow(mnp_points))
+    tst <-dat2[i,]
+    trn <-dat2[-i,]
+    opt <- optim(c(8, .5), f1, test=tst, train=trn)
+    opt
+})
+Nmax<-lappy(opt,"[[","par")
+
+m <- gstat(formula=med_d_mbps~1, locations=~x+y, data=dat2, nmax=opt$par[1], set=list(idp=opt$par[2]))
+idw_opt <- interpolate(mnp_rast_pr, m, debug.level=0)
+idw_opt<-idw_opt[[1]]
+# Convert back to lat/lon
+idw_opt<-terra::project(idw_opt,crs(mnp_rast))
+# Crop and mask to SSA
+idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)
+
+terra::plot(idw_opt)
+
+
+
 mnp <- terra::interpolate(mnp_rast_pr, gs, debug.level=0)
 mnp<-mnp[[1]]
 # Convert back to lat/lon
