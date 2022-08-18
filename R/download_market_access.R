@@ -7,7 +7,7 @@ DataDir<-"/home/jovyan/common_data/"
 SaveDir<-paste0(DataDir,"/atlas_market_access/raw")
                 
 if(!dir.exists(SaveDir)){
-    dir.create(SaveDir)
+    dir.create(SaveDir,recursive=T)
     }
 
 Files<-"2015_accessibility_to_cities_v1.0.zip"
