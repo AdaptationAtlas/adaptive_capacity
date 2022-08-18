@@ -20,44 +20,64 @@ base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YA
 base_raster<-terra::crop(base_raster,adm1_africa)
 
 # Read in ookla data
-OoklaDir<-paste0(DataDir,"/atlas_ookla/raw")
+OoklaDirs<-list.dirs(paste0(DataDir,"/atlas_ookla/raw"))
+OoklaDirs<-grep("20",OoklaDirs,value=T)
+Dates<-unlist(data.table::tstrsplit(OoklaDirs,"/",keep=7))
 
-mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
+mnp_stack<-terra::rast(lapply(1:length(OoklaDirs),FUN=function(i){
+    File<-paste0(DataDirInt,"/",Dates[i],".tif")
+    if(!file.exists(File)){
+        OoklaDir<-OoklaDirs[i]
+        mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
 
-# Convert tiles to points
-mnp_centroids<-terra::centroids(mnp)
-rm(mnp)
-gc()
+        # Convert tiles to points
+        mnp_centroids<-terra::centroids(mnp)
+        rm(mnp)
+        gc()
 
-# Mask to sub-Saharan Africa
-mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
-# convert kbps to mbps
-mnp_centroids$avg_d_mbps<-mnp_centroids$avg_d_kbps/1000
+        # Mask to sub-Saharan Africa
+        mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
+        # convert kbps to mbps
+        mnp_centroids$avg_d_mbps<-mnp_centroids$avg_d_kbps/1000
 
-# explore dl speed data
-if(F){
-avg_d_mbps<-mnp_centroids$avg_d_mbps
-round(
-    c(
-        perc_0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
-        perc_0.1_10=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<10])/length(avg_d_mbps)),
-        perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
-        perc_100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
-    )
-    ,2)
+        # explore dl speed data
+        if(F){
+        avg_d_mbps<-mnp_centroids$avg_d_mbps
+        round(
+            c(
+                perc_0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
+                perc_0.1_10=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<10])/length(avg_d_mbps)),
+                perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
+                perc_100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
+            )
+            ,2)
 
-terra::plot(mnp_centroids)
-hist(mnp_centroids$avg_d_mbps,breaks=100)
-hist(mnp_centroids$avg_d_mbps[mnp_centroids$avg_d_mbps<100],breaks=100)
-}
+        terra::plot(mnp_centroids)
+        hist(mnp_centroids$avg_d_mbps,breaks=100)
+        hist(mnp_centroids$avg_d_mbps[mnp_centroids$avg_d_mbps<100],breaks=100)
+        }
 
-# Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
-mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_mbps",fun=median)
+        # Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
+        mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_mbps",fun=median)
+        names(mnp_rast)<-"med_d_mbps"
+
+        suppressWarnings(terra::writeRaster(mnp_rast,file=File,overwrite=T))
+
+        mnp_rast
+    }else{
+        terra::rast(File)
+    }
+}))
+
+mnp_rast<-app(mnp_stack,mean,na.rm=T)
 names(mnp_rast)<-"med_d_mbps"
+
+# Aggregate to 10km cells, create binary mask of data vs no data, this mask can be applied 
 
 if(F){
 # re-explore dl speed data
 terra::plot(mnp_rast)
+terra::plot(log10(mnp_rast))
 hist(mnp_rast[],breaks=100)
 hist(mnp_rast[mnp_rast<100][],breaks=100)
     
@@ -126,7 +146,6 @@ for (k in 1:5) {
 
 mean(rmse)
 1 - (mean(rmse) / null)
-
 
 # Inverse distance weighted interpolation
 

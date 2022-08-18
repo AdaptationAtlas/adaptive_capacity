@@ -13,7 +13,8 @@ quarters=c(1,2,3,4)
 
 dates<-expand.grid(quarter=quarters,year=years)
 dates$start.date<-paste0(dates$year,rep(c("-01-01","-04-01","-07-01","-10-01"),3))
-dates<-dates[!(dates$year==2022 & dates$quarter %in% c(1,2)),]
+dates<-dates[!(dates$year==2022 & dates$quarter %in% c(3,4)),]
+
 dates$URL<-paste0("https://ookla-open-data.s3.amazonaws.com/shapefiles/performance/type=mobile/year=",dates$year,"/quarter=",dates$quarter,"/",dates$start.date,"_performance_mobile_tiles.zip")
 dates$destfile<-paste0(SaveDir,"/",dates$start.date,"_performance_mobile_tiles.zip")
 
@@ -34,4 +35,13 @@ for(i in 1:length(URLS)){
             download.file(URL, destfile)
         }  
     
+}
+
+for(i in 1:length(destfiles)){
+    File<-destfiles[i]
+    Dir<-paste0(SaveDir,"/",dates$start.date[i])
+    if(!dir.exists(Dir)){
+       dir.create(Dir) 
+        }
+    unzip(File,exdir=Dir)
 }
