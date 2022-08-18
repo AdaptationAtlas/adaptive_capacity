@@ -93,6 +93,7 @@ names(mnp_rp)<-"dl_speed"
 terra::plot(mnp_rp)
 terra::plot(log10(mnp_rp))
 
+if(F){
 # Thin plate spline
 library(fields)
 m <- fields::Tps(dat2[,c("x", "y")], dat2$med_d_mbps)
@@ -105,6 +106,7 @@ tps_rp<-terra::mask(terra::crop(tps_rp,adm1_africa),adm1_africa)
 names(tps_rp)<-"dl_speed"
 terra::plot(tps_rp)
 terra::plot(log10(tps_rp))
+}    
 
 # Save data
 terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
