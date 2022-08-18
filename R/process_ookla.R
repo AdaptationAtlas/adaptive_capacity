@@ -29,38 +29,94 @@ mnp_centroids<-terra::centroids(mnp)
 
 # Mask to sub-Saharan Africa
 mnp_centroids<-terra::mask(terra::crop(mnp_centroids,adm1_africa),adm1_africa)
+# convert kbps to mbps
+mnp_centroids$avg_d_mbps<-mnp_centroids$avg_d_kbps/1000
+
+# explore dl speed data
+avg_d_mbps<-mnp_centroids$avg_d_mbps
+round(
+    c(
+        perc_0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
+        perc_0.1_10=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<10])/length(avg_d_mbps)),
+        perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
+        perc_100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
+    )
+    ,2)
 
 terra::plot(mnp_centroids)
-hist(mnp_centroids$avg_d_kbps)
+hist(mnp_centroids$avg_d_mbps,breaks=100)
+hist(mnp_centroids$avg_d_mbps[mnp_centroids$avg_d_mbps<100],breaks=100)
 
 # Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
-mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_kbps",fun=mean)
-names(mnp_rast)<-"avg_d_kbps"
+mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_mbps",fun=median)
+names(mnp_rast)<-"med_d_mbps"
+terra::plot(mnp_rast)
+hist(mnp_rast[],breaks=100)
+hist(mnp_rast[mnp_rast<100][],breaks=100)
+
+# re-explore dl speed data
+avg_d_mbps<-mnp_rast[!is.na(mnp_rast)][]
+round(
+    c(
+        perc_lt0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
+        perc_0.1_1=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<1])/length(avg_d_mbps)),
+        perc_1_10=100*(length(avg_d_mbps[avg_d_mbps>=1 & avg_d_mbps<10])/length(avg_d_mbps)),
+        perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
+        perc_gt100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
+    )
+    ,2)
+
 
 # Change to projected CRS
 mnp_rast_pr<-terra::project(mnp_rast,"+proj=merc +datum=WGS84 +units=km")
 
 # Convert rasterized data back to points
 mnp_points<-as.points(mnp_rast_pr, values=TRUE, na.rm=TRUE)
+terra::plot(mnp_points,"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+terra::plot(mnp_points[mnp_points$med_d_mbps<0.1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+terra::plot(mnp_points[mnp_points$med_d_mbps<1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+terra::plot(mnp_points[mnp_points$med_d_mbps>=1 & mnp_points$med_d_mbps<10],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+terra::plot(mnp_points[mnp_points$med_d_mbps>=10 & mnp_points$med_d_mbps<100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
+terra::plot(mnp_points[mnp_points$med_d_mbps>=100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
 
 # Inverse distance weighted interpolation
 dat2 <- data.frame(geom(mnp_points)[, c("x", "y")], as.data.frame(mnp_points))
 
-gs <- gstat::gstat(formula=avg_d_kbps~1, locations=~x+y, data=dat2)
+gs <- gstat::gstat(formula=med_d_mbps~1, locations=~x+y, data=dat2)
 mnp <- terra::interpolate(mnp_rast_pr, gs, debug.level=0)
 mnp<-mnp[[1]]
-
 # Convert back to lat/lon
 mnp_rp<-terra::project(mnp,crs(mnp_rast))
 # Crop and mask to SSA
 mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)
 names(mnp_rp)<-"dl_speed"
 terra::plot(mnp_rp)
+terra::plot(log10(mnp_rp))
+
+# Thin plate spline
+library(fields)
+m <- fields::Tps(dat2[,c("x", "y")], dat2$med_d_mbps)
+tps <- terra::interpolate(mnp_rast_pr, m)
+tps<-tps[[1]]
+# Convert back to lat/lon
+tps_rp<-terra::project(tps,crs(mnp_rast))
+# Crop and mask to SSA
+tps_rp<-terra::mask(terra::crop(tps_rp,adm1_africa),adm1_africa)
+names(tps_rp)<-"dl_speed"
+terra::plot(tps_rp)
+terra::plot(log10(tps_rp))
 
 # Save data
 terra::writeRaster(mnp_rp,paste0(DataDirInt,"/",names(mnp_rp),".tif"),overwrite=T)
 data<-mnp_rp
 
+# Generate manual breakpoints
+m_reclass<-cbind(c(0,100,100000),c(100,100000,99999999),c(0,1,2))
+data_reclass<-terra::classify(data,m_reclass)
+levels(data_reclass)<-c("low","medium","high")
+terra::plot(data_reclass)
+suppressWarnings(terra::writeRaster(data_reclass,file=paste0(DataDirInt,"/",names(mnp_rp),"_manclass.tif"),overwrite=T))
+                 
 # Generate terciles
 Overwrite<-T
 # Adaptive capacity is classified thus: high = good, low = bad
