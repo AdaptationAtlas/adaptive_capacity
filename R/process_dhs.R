@@ -13,20 +13,53 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Read in DHS data
 dhs_data<- read.csv(paste0(DataDirInt,"/data.csv"))
-
 dhs_polys<-merge(adm1_africa,dhs_data,all.x=TRUE, by.x='HASC_1', by.y='HASC_1')
 
+# Check for missing values
+if(F){
+Dat<-data.frame(dhs_polys)
+Dat[is.na(Dat$reproHealth_2015),c("GID_0","NAME_1","HASC_1")]
+
+# dhs data has no value for DJ.AR
+dhs_data[dhs_data$ISO3=="DJI",]
+Dat[Dat$GID_0=="DJI" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
+
+# Ghana missing data are confirmed NAs in dhs data 
+dhs_data[dhs_data$ISO3=="GHA",]
+Dat[Dat$GID_0=="GHA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
+
+# dhs data has no value for TZ.SO
+dhs_data[dhs_data$ISO3=="TZA",]
+Dat[Dat$GID_0=="TZA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
+
+# Missing uganda values appear to be lakes
+dhs_data[dhs_data$ISO3=="UGA",]
+Dat[Dat$GID_0=="UGA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
+}
+
+# Create vector of dhs variable names
 fields<-colnames(dhs_data)
 fields<-fields[!grepl("HASC_1|ISO3",fields)]
+Overwrite<-T
 
 data<-terra::rast(lapply(fields,FUN=function(FIELD){
     File<-paste0(DataDirInt,"/",FIELD,".tif")
-    if(!file.exists(File)){
+    if(!(file.exists(File))|Overwrite==T){
         X<-terra::rasterize(dhs_polys,base_raster,field=FIELD)
         names(X)<-FIELD
-        suppressWarnings(terra::writeRaster(X,file=File))
+        # Mask out water bodies
+        X<-X*water_mask
+        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
         X
     }else{
     terra::rast(File)

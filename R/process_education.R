@@ -16,16 +16,27 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Load datasets
 data<-terra::rast(paste0(DataDir,"/atlas_education/raw/shdi-2018-education.tif"))
 
-# It seem 0 is an NA value is this dataset
+# 0 is an NA value is this dataset
 data[data==0]<-NA
-
 names(data)<-"education"
 
 # Resample data
 data<-terra::resample(data,base_raster,method="average")
+
+# Mask data
+data<-terra::mask(data,adm1_africa)
+data<-data*water_mask
 
 lapply(names(data),FUN=function(FIELD){
     File<-paste0(DataDirInt,"/",FIELD,".tif")
@@ -60,4 +71,4 @@ data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     }
 }))
 
-terra::plot(data_terciles)
+terra::plot(c(data,data_terciles))

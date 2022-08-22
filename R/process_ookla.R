@@ -19,14 +19,23 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Read in ookla data
 OoklaDirs<-list.dirs(paste0(DataDir,"/atlas_ookla/raw"))
 OoklaDirs<-grep("20",OoklaDirs,value=T)
 Dates<-unlist(data.table::tstrsplit(OoklaDirs,"/",keep=7))
 
+Overwrite<-T
 mnp_stack<-terra::rast(lapply(1:length(OoklaDirs),FUN=function(i){
     File<-paste0(DataDirInt,"/",Dates[i],".tif")
-    if(!file.exists(File)){
+    if(!file.exists(File)|Overwrite==T){
         OoklaDir<-OoklaDirs[i]
         mnp <- terra::vect(paste0(OoklaDir,"/gps_mobile_tiles.shp"))
 
@@ -40,24 +49,7 @@ mnp_stack<-terra::rast(lapply(1:length(OoklaDirs),FUN=function(i){
         # convert kbps to mbps
         mnp_centroids$avg_d_mbps<-mnp_centroids$avg_d_kbps/1000
 
-        # explore dl speed data
-        if(F){
-        avg_d_mbps<-mnp_centroids$avg_d_mbps
-        round(
-            c(
-                perc_0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
-                perc_0.1_10=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<10])/length(avg_d_mbps)),
-                perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
-                perc_100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
-            )
-            ,2)
-
-        terra::plot(mnp_centroids)
-        hist(mnp_centroids$avg_d_mbps,breaks=100)
-        hist(mnp_centroids$avg_d_mbps[mnp_centroids$avg_d_mbps<100],breaks=100)
-        }
-
-        # Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
+         # Rasterize points within 5m pixels, averaging the download speed (a more sophisticated approach would be to take a weighted mean based on number of tests per point)
         mnp_rast<-terra::rasterize(mnp_centroids,base_raster,field="avg_d_mbps",fun=median)
         names(mnp_rast)<-"med_d_mbps"
 
@@ -72,41 +64,21 @@ mnp_stack<-terra::rast(lapply(1:length(OoklaDirs),FUN=function(i){
 mnp_rast<-app(mnp_stack,mean,na.rm=T)
 names(mnp_rast)<-"med_d_mbps"
 
-# Aggregate to 10km cells, create binary mask of data vs no data, this mask can be applied 
-
-if(F){
-# re-explore dl speed data
-terra::plot(mnp_rast)
-terra::plot(log10(mnp_rast))
-hist(mnp_rast[],breaks=100)
-hist(mnp_rast[mnp_rast<100][],breaks=100)
-    
-avg_d_mbps<-mnp_rast[!is.na(mnp_rast)][]
-round(
-    c(
-        perc_lt0.1=100*(length(avg_d_mbps[avg_d_mbps<0.1])/length(avg_d_mbps)),
-        perc_0.1_1=100*(length(avg_d_mbps[avg_d_mbps>=0.1 & avg_d_mbps<1])/length(avg_d_mbps)),
-        perc_1_10=100*(length(avg_d_mbps[avg_d_mbps>=1 & avg_d_mbps<10])/length(avg_d_mbps)),
-        perc_10_100=100*(length(avg_d_mbps[avg_d_mbps>=10 & avg_d_mbps<100])/length(avg_d_mbps)),
-        perc_gt100=100*(length(avg_d_mbps[avg_d_mbps>=100])/length(avg_d_mbps))
-    )
-    ,2)
-}
+# Aggregate to 10km cells, create binary mask of ookla data vs no data
+mask<-mnp_rast
+mask<-terra::aggregate(mask,factor=2,fun=max,na.rm=T)
+mask_da<-terra::disagg(mask,fact=2)
+mask_da[mask_da==0]<-NA
+mask_da[mask_da>0]<-1
+mask_da[is.na(mask_da)]<-0
+mask_da<-terra::mask(terra::crop(mask_da,adm1_africa),adm1_africa)*water_mask
+terra::plot(mask_da)
 
 # Change to projected CRS
 mnp_rast_pr<-terra::project(mnp_rast,"+proj=merc +datum=WGS84 +units=km",method="near")
 
 # Convert rasterized data back to points
 mnp_points<-as.points(mnp_rast_pr, values=TRUE, na.rm=TRUE)
-
-if(F){
-terra::plot(mnp_points,"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-terra::plot(mnp_points[mnp_points$med_d_mbps<0.1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-terra::plot(mnp_points[mnp_points$med_d_mbps<1],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-terra::plot(mnp_points[mnp_points$med_d_mbps>=1 & mnp_points$med_d_mbps<10],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-terra::plot(mnp_points[mnp_points$med_d_mbps>=10 & mnp_points$med_d_mbps<100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-terra::plot(mnp_points[mnp_points$med_d_mbps>=100],"med_d_mbps",breaks=c(0,.1,1,10,100,999),cex=0.75)
-}
 
 dat2 <- data.frame(geom(mnp_points)[, c("x", "y")], as.data.frame(mnp_points))
 
@@ -126,7 +98,7 @@ nn<-nn[[1]]
 # Convert back to lat/lon
 nn<-terra::project(nn,crs(mnp_rast))
 # Crop and mask to SSA
-nn<-terra::mask(terra::crop(nn,adm1_africa),adm1_africa)
+nn<-terra::mask(terra::crop(nn,adm1_africa),adm1_africa)*water_mask
 
 terra::plot(nn)
 terra::plot(log10(nn))
@@ -179,7 +151,7 @@ idw_opt<-idw_opt[[1]]
 # Convert back to lat/lon
 idw_opt<-terra::project(idw_opt,crs(mnp_rast))
 # Crop and mask to SSA
-idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)
+idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)*water_mask
 
 terra::plot(idw_opt)
 terra::plot(log10(idw_opt))
@@ -207,7 +179,7 @@ mnp<-mnp[[1]]
 # Convert back to lat/lon
 mnp_rp<-terra::project(mnp,crs(mnp_rast))
 # Crop and mask to SSA
-mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)
+mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)*water_mask
 names(mnp_rp)<-"dl_speed"
 terra::plot(mnp_rp)
 terra::plot(log10(mnp_rp))
@@ -231,31 +203,25 @@ mean(rmse)
 # Save data
 data<-idw_opt
 names(data)<-"dl_speed"
-terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
 
-if(F){
-# Thin plate spline
-library(fields)
-m <- fields::Tps(dat2[,c("x", "y")], dat2$med_d_mbps)
-tps <- terra::interpolate(mnp_rast_pr, m, debug.level=0)
-tps<-tps[[1]]
-# Convert back to lat/lon
-tps_rp<-terra::project(tps,crs(mnp_rast))
-# Crop and mask to SSA
-tps_rp<-terra::mask(terra::crop(tps_rp,adm1_africa),adm1_africa)
-names(tps_rp)<-"dl_speed"
-terra::plot(tps_rp)
-terra::plot(log10(tps_rp))
-}    
+# Reclass areas without signal
+data_m<-data*mask_da
+names(data_m)<-"dl_speed_masked"
+terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
+terra::writeRaster(data_m,paste0(DataDirInt,"/",names(data_m),".tif"),overwrite=T)
 
 # Generate manual breakpoints
-m_reclass<-cbind(c(0,10,50),c(10,50,99999999),c(0,1,2))
-data_reclass<-terra::classify(data,m_reclass)
-levels(data_reclass)<-c("low","medium","high")
-terra::plot(data_reclass)
-suppressWarnings(terra::writeRaster(data_reclass,file=paste0(DataDirInt,"/",names(mnp_rp),"_manclass.tif"),overwrite=T))
+m_reclass<-cbind(c(0,0.000001,10.0000001),
+                 c(0,10,99999999),
+                 c(0,1,2))
+data_m_reclass<-terra::classify(data_m,m_reclass)
+levels(data_m_reclass)<-c("low","medium","high")
+names(data_m_reclass)<-paste(names(data_m_reclass),"_manclass")
+suppressWarnings(terra::writeRaster(data_m_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
+
+terra::plot(c(data,data_m,data_m_reclass))
                  
-# Generate terciles
+# Generate terciles for non-masked data
 Overwrite<-T
 # Adaptive capacity is classified thus: high = good, low = bad
 # High download speed is better, lower tercile = bad, upper tercile = good 
@@ -291,6 +257,30 @@ data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     }
 }))
 
-terra::plot(c(log10(data),data_reclass,data_terciles))
+# Generate 2 classes for masked data
+Labels<-c("medium","high")
+Values<-c(1,2)
+
+X<-data_m
+N<-which(data_m[]<0.1)
+X[X<0.1]<-NA
+vTert = quantile(X[], c(0:2/2),na.rm=T)
+Intervals<-data.frame(Intervals=apply(cbind(c("low",Labels),c(0,round(vTert[1:2],3)),c(0.1,round(vTert[2:3],3))),1,paste,collapse="-"))
+write.csv(Intervals,file=paste0(DataDirInt,"/",names(X),".csv"),row.names=F)
+        
+Terciles<-cut(X[],
+          vTert, 
+          include.lowest = T, 
+          labels = Values)
+ 
+X[]<-as.numeric(Terciles)
+X[N]<-0
+levels(X)<-c("low","medium","high")
+names(X)<-paste0(names(X),"_duociles")
+plot(X)
+
+suppressWarnings(terra::writeRaster(X,file=paste0(DataDirInt,"/",names(X),".tif"),overwrite=T))
+
+terra::plot(c(data,data_terciles,data_m_reclass,X))
 
 

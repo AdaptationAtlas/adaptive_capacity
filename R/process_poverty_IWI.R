@@ -20,6 +20,14 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Load data
 Files<-list.files(paste0(DataDir,"/atlas_poverty_IWI/raw"),".csv",full.names=T)
 
@@ -77,7 +85,7 @@ opt_par<-apply(opt_par,2,median)
 m <- gstat(formula=IWI~1, locations=~x+y, data=dat2, nmax=opt_par[1], set=list(idp=opt_par[2]))
 idw_opt <- terra::interpolate(dat_rast, m, debug.level=0)
 idw_opt<-terra::resample(idw_opt,base_raster,method="average")
-idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)
+idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)*water_mask
 
 # Standard IDW model without interpolation
 gs <- gstat::gstat(formula=IWI~1, locations=~x+y, data=dat2)
@@ -85,8 +93,7 @@ idw <- terra::interpolate(dat_rast, gs, debug.level=0)
 idw<-idw[[1]]
 
 idw<-terra::resample(idw,base_raster,method="average")
-
-idw<-terra::mask(terra::crop(idw,adm1_africa),adm1_africa)
+idw<-terra::mask(terra::crop(idw,adm1_africa),adm1_africa)*water_mask
 
 terra::plot(c(idw,idw_opt))
 

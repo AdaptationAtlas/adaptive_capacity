@@ -6,7 +6,7 @@ DataDir<-"/home/jovyan/common_data"
 # Create intermediate directory
 DataDirInt<-paste0(DataDir,"/atlas_poverty/intermediate")
 if(!dir.exists(DataDirInt)){
-    dir.create(DataDirInt)
+    dir.create(DataDirInt,recursive=T)
     }
 
 # Read in admin1 for subsaharan africa
@@ -16,11 +16,20 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Load datasets
 data<-terra::vect(paste0(DataDir,"/atlas_poverty/raw/extreme-poverty.geojson"))
+data<-terra::mask(terra::crop(data,adm1_africa),adm1_africa)
 
 # Rasterize data
-data<-terra::rasterize(data,base_raster,field="poverty_mean")
+data<-terra::rasterize(data,base_raster,field="poverty_mean")*water_mask
 
 names(data)<-"poverty"
 
@@ -63,4 +72,4 @@ data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     }
 }))
 
-terra::plot(data_terciles)
+terra::plot(c(data,data_terciles))

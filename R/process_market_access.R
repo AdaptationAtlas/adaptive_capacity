@@ -6,7 +6,7 @@ DataDir<-"/home/jovyan/common_data"
 # Create intermediate directory
 DataDirInt<-paste0(DataDir,"/atlas_market_access/intermediate")
 if(!dir.exists(DataDirInt)){
-    dir.create(DataDirInt)
+    dir.create(DataDirInt,recursive=T)
     }
     
 # Read in admin1 for subsaharan africa
@@ -16,6 +16,14 @@ adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_s
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
 base_raster<-terra::crop(base_raster,adm1_africa)
 
+# Read in waterbodies to create mask
+waterbodies<-terra::vect(paste0(DataDir,"/atlas_surfacewater/raw/waterbodies_africa.shp"))
+water_mask<-terra::rasterize(waterbodies,base_raster)
+water_mask[!is.na(water_mask)]<-0
+water_mask[is.na(water_mask)]<-1
+water_mask[water_mask==0]<-NA
+water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
+
 # Read in market access data
 market_access<-terra::rast(paste0(DataDir,"/atlas_market_access/raw/2015_accessibility_to_cities_v1.0.tif"))
 
@@ -23,7 +31,7 @@ market_access<-terra::rast(paste0(DataDir,"/atlas_market_access/raw/2015_accessi
 market_access<-terra::resample(market_access,base_raster,method="average")
 
 # Crop and mask
-data<-terra::mask(terra::crop(market_access,adm1_africa),adm1_africa)
+data<-terra::mask(terra::crop(market_access,adm1_africa),adm1_africa)*water_mask
 names(data)<-"market_access"
 
 # Save data
@@ -65,4 +73,4 @@ data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
     }
 }))
 
-terra::plot(data_terciles)
+terra::plot(c(data,data_terciles))

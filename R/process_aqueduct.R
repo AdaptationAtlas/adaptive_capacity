@@ -5,10 +5,10 @@ DataDir<-"/home/jovyan/common_data"
 AqueDir<-paste0(DataDir,"/atlas_aqueduct_3/raw/Y2019M07D12_Aqueduct30_V01")
 
 # Read in boundary of subsaharan africa
-sh_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadml0_4326_agg.shp"))
+adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
 
 # Read base raster
-base_rast<-terra::crop(terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif")),sh_africa)
+base_rast<-terra::crop(terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif")),adm1_africa)
 
 AqueDirInt<-paste0(DataDir,"/atlas_aqueduct_3/intermediate")
 if(!dir.exists(AqueDirInt)){
