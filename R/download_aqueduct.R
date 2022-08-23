@@ -1,5 +1,5 @@
 DataDir<-"/home/jovyan/common_data"
-SaveDir<-paste0(DataDir,"/aqueduct_3/raw")
+SaveDir<-paste0(DataDir,"/atlas_aqueduct_3/raw")
 
 # https://www.wri.org/applications/aqueduct/water-risk-atlas
 # https://www.wri.org/research/aqueduct-30-updated-decision-relevant-global-water-risk-indicators
