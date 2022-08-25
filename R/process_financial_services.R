@@ -35,7 +35,7 @@ data_vect$HV247_p[data_vect$CNTRYNAMEE=="South Africa"]<-NA
 # Rasterize
 data<-terra::rasterize(data_vect,base_raster,field="HV247_p")
 terra::plot(data)
-names(data)<-"bank_account_pr"
+names(data)<-"Banking_Access"
 
 # Mask data
 data<-terra::mask(data,adm1_africa)
@@ -47,38 +47,20 @@ lapply(names(data),FUN=function(FIELD){
     })
 
 
-Overwrite=T
+
 # Adaptive capacity is classified thus: high = good, low = bad
 # A high proportion of people with bank accounts is better, lower tercile = bad, upper tercile = good 
 Invert<-F
 
-Labels<-c("low","medium","high")
-Values<-c(0,1,2)
+devtools::source_url("https://github.com/AdaptationAtlas/adaptive_capacity/blob/main/R/functions.R?raw=TRUE")
 
-data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
-    
-    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
-    
-    if((!file.exists(File))|Overwrite){
-        X<-data[[FIELD]]
-        vTert = quantile(X[], c(0:3/3),na.rm=T)
+data_terciles<-quantile_split(data,
+                              Labels=c("low","medium","high"),
+                              Invert=Invert,
+                              Overwrite=T,
+                              do_binary_splits=T,
+                              savedir=DataDirInt)
 
-       Levels<-if(Invert){Labels[length(Labels):1]}else{Labels}
-                
-        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
-        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
-        
-        Terciles<-cut(X[],
-                      vTert, 
-                      include.lowest = T, 
-                      labels = Values)
-        X[]<-as.numeric(Terciles)-1
-        levels(X)<-  Levels  
-        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
-        X
-        }else{
-            terra::rast(File)
-    }
-}))
-
-terra::plot(c(data,data_terciles))
+Files<-list.files(DataDirInt,".tif",full.names=T)
+Files<-Files[!grepl("aux",Files)]
+terra::plot(terra::rast(Files))
