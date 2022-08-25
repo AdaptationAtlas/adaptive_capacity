@@ -53,7 +53,7 @@ data<-terra::rast(lapply(fields,FUN=function(FIELD){
 # A high proportion of people with bank accounts is better, lower tercile = bad, upper tercile = good 
 Invert=F
 
-
+devtools::source_url("https://github.com/AdaptationAtlas/adaptive_capacity/blob/main/R/functions.R?raw=TRUE")
 
 data_terciles<-quantile_split(data,
                               Labels=c("low","medium","high"),
