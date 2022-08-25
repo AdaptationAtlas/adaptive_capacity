@@ -1,0 +1,244 @@
+﻿Solution,Adaptive Capacity Indicator,Requirement Score
+Agroforestry,Banking Access,Low
+Agroforestry,Education,Low
+Agroforestry,Gender Equity,Low
+Agroforestry,Health Facility Access,Low
+Agroforestry,Market Access ,Low
+Agroforestry,Mobile Internet Access,Low
+Agroforestry,Wealth,Low
+Shifting Planting Dates,Banking Access,Low
+Shifting Planting Dates,Education,Medium
+Shifting Planting Dates,Gender Equity,Medium
+Shifting Planting Dates,Health Facility Access,Low
+Shifting Planting Dates,Market Access ,Low
+Shifting Planting Dates,Mobile Internet Access,Medium
+Shifting Planting Dates,Wealth,Low
+Intercropping,Banking Access,Low
+Intercropping,Education,Medium
+Intercropping,Gender Equity,Medium
+Intercropping,Health Facility Access,Low
+Intercropping,Market Access ,Medium
+Intercropping,Mobile Internet Access,Low
+Intercropping,Wealth,Low
+Stress-Adapted Germplasm,Banking Access,Medium
+Stress-Adapted Germplasm,Education,Medium
+Stress-Adapted Germplasm,Gender Equity,Medium
+Stress-Adapted Germplasm,Health Facility Access,Low
+Stress-Adapted Germplasm,Market Access ,Medium
+Stress-Adapted Germplasm,Mobile Internet Access,Medium
+Stress-Adapted Germplasm,Wealth,Medium
+Organic Fertilizers,Banking Access,Low
+Organic Fertilizers,Education,Low
+Organic Fertilizers,Gender Equity,Low
+Organic Fertilizers,Health Facility Access,Low
+Organic Fertilizers,Market Access ,Low
+Organic Fertilizers,Mobile Internet Access,Low
+Organic Fertilizers,Wealth,Low
+Inorganic Fertilizers,Banking Access,Medium
+Inorganic Fertilizers,Education,Medium
+Inorganic Fertilizers,Gender Equity,Low
+Inorganic Fertilizers,Health Facility Access,Low
+Inorganic Fertilizers,Market Access ,Medium
+Inorganic Fertilizers,Mobile Internet Access,Medium
+Inorganic Fertilizers,Wealth,Medium
+Mulch,Banking Access,Low
+Mulch,Education,Low
+Mulch,Gender Equity,Low
+Mulch,Health Facility Access,Low
+Mulch,Market Access ,Low
+Mulch,Mobile Internet Access,Low
+Mulch,Wealth,Low
+Reduced Tillage,Banking Access,Low
+Reduced Tillage,Education,Medium
+Reduced Tillage,Gender Equity,Low
+Reduced Tillage,Health Facility Access,Low
+Reduced Tillage,Market Access ,Low
+Reduced Tillage,Mobile Internet Access,Medium
+Reduced Tillage,Wealth,Low
+Irrigation,Banking Access,Medium
+Irrigation,Education,Medium
+Irrigation,Gender Equity,Low
+Irrigation,Health Facility Access,Medium
+Irrigation,Market Access ,High
+Irrigation,Mobile Internet Access,Medium
+Irrigation,Wealth,High
+Water Harvesting,Banking Access,Low
+Water Harvesting,Education,Medium
+Water Harvesting,Gender Equity,Low
+Water Harvesting,Health Facility Access,Medium
+Water Harvesting,Market Access ,Low
+Water Harvesting,Mobile Internet Access,Low
+Water Harvesting,Wealth,Low
+Switch Crops,Banking Access,Low
+Switch Crops,Education,High
+Switch Crops,Gender Equity,Medium
+Switch Crops,Health Facility Access,Low
+Switch Crops,Market Access ,Medium
+Switch Crops,Mobile Internet Access,Medium
+Switch Crops,Wealth,Low
+Crop Insurance,Banking Access,High
+Crop Insurance,Education,High
+Crop Insurance,Gender Equity,Low
+Crop Insurance,Health Facility Access,Low
+Crop Insurance,Market Access ,High
+Crop Insurance,Mobile Internet Access,High
+Crop Insurance,Wealth,Medium
+Climate Information,Banking Access,Low
+Climate Information,Education,Medium
+Climate Information,Gender Equity,Low
+Climate Information,Health Facility Access,Low
+Climate Information,Market Access ,Low
+Climate Information,Mobile Internet Access,High
+Climate Information,Wealth,Low
+Digital Crop Advisories,Banking Access,Low
+Digital Crop Advisories,Education,Medium
+Digital Crop Advisories,Gender Equity,Low
+Digital Crop Advisories,Health Facility Access,Low
+Digital Crop Advisories,Market Access ,Low
+Digital Crop Advisories,Mobile Internet Access,Medium
+Digital Crop Advisories,Wealth,Low
+Credit,Banking Access,High
+Credit,Education,High
+Credit,Gender Equity,Low
+Credit,Health Facility Access,Low
+Credit,Market Access ,High
+Credit,Mobile Internet Access,Low
+Credit,Wealth,Medium
+Improved Breeds,Banking Access,Medium
+Improved Breeds,Education,Medium
+Improved Breeds,Gender Equity,Low
+Improved Breeds,Health Facility Access,Low
+Improved Breeds,Market Access ,Medium
+Improved Breeds,Mobile Internet Access,Low
+Improved Breeds,Wealth,Medium
+Improved Diets,Banking Access,Medium
+Improved Diets,Education,Medium
+Improved Diets,Gender Equity,Low
+Improved Diets,Health Facility Access,Low
+Improved Diets,Market Access ,Low
+Improved Diets,Mobile Internet Access,Low
+Improved Diets,Wealth,Low
+Shift to Small Ruminants,Banking Access,Low
+Shift to Small Ruminants,Education,Medium
+Shift to Small Ruminants,Gender Equity,Low
+Shift to Small Ruminants,Health Facility Access,Low
+Shift to Small Ruminants,Market Access ,Medium
+Shift to Small Ruminants,Mobile Internet Access,Low
+Shift to Small Ruminants,Wealth,Medium
+Livestock Sheds,Banking Access,High
+Livestock Sheds,Education,High
+Livestock Sheds,Gender Equity,Low
+Livestock Sheds,Health Facility Access,Low
+Livestock Sheds,Market Access ,Medium
+Livestock Sheds,Mobile Internet Access,Low
+Livestock Sheds,Wealth,High
+Water points,Banking Access,High
+Water points,Education,Medium
+Water points,Gender Equity,Low
+Water points,Health Facility Access,Low
+Water points,Market Access ,High
+Water points,Mobile Internet Access,Low
+Water points,Wealth,High
+Improved Forages,Banking Access,Low
+Improved Forages,Education,Medium
+Improved Forages,Gender Equity,Low
+Improved Forages,Health Facility Access,Low
+Improved Forages,Market Access ,Low
+Improved Forages,Mobile Internet Access,Low
+Improved Forages,Wealth,Low
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,
