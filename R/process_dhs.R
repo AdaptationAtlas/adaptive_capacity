@@ -7,7 +7,7 @@ DataDir<-"/home/jovyan/common_data"
 DataDirInt<-paste0(DataDir,"/atlas_dhs/intermediate")
 
 # Read in admin1 for subsaharan africa
-adm1_africa<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm41_ssa_1.shp"))
+adm1_africa36<-terra::vect(paste0(DataDir,"/atlas_boundaries/intermediate/gadm36_ssa_1.shp"))
 
 # Read in a base raster
 base_raster<-terra::rast(paste0(DataDir,"/mapspam_2017/raw/spam2017V2r1_SSA_H_YAMS_S.tif"))
@@ -23,29 +23,11 @@ water_mask<-terra::mask(terra::crop(water_mask,adm1_africa),adm1_africa)
 
 # Read in DHS data
 dhs_data<- read.csv(paste0(DataDirInt,"/data.csv"))
-dhs_polys<-merge(adm1_africa,dhs_data,all.x=TRUE, by.x='HASC_1', by.y='HASC_1')
+dhs_polys<-terra::merge(adm1_africa36,dhs_data,all.x=TRUE, by.x='HASC_1', by.y='HASC_1')
 
 # Check for missing values
-if(F){
 Dat<-data.frame(dhs_polys)
-Dat[is.na(Dat$reproHealth_2015),c("GID_0","NAME_1","HASC_1")]
-
-# dhs data has no value for DJ.AR
-dhs_data[dhs_data$ISO3=="DJI",]
-Dat[Dat$GID_0=="DJI" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
-
-# Ghana missing data are confirmed NAs in dhs data 
-dhs_data[dhs_data$ISO3=="GHA",]
-Dat[Dat$GID_0=="GHA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
-
-# dhs data has no value for TZ.SO
-dhs_data[dhs_data$ISO3=="TZA",]
-Dat[Dat$GID_0=="TZA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
-
-# Missing uganda values appear to be lakes
-dhs_data[dhs_data$ISO3=="UGA",]
-Dat[Dat$GID_0=="UGA" & !is.na(Dat$GID_0) & is.na(Dat$reproHealth_2015),]
-}
+Dat[is.na(Dat$reproHealth_2015),c("HASC_1","GID_0","NAME_0","NAME_1")]
 
 # Create vector of dhs variable names
 fields<-colnames(dhs_data)
@@ -66,34 +48,21 @@ data<-terra::rast(lapply(fields,FUN=function(FIELD){
     }
 }))
 
-# Generate terciles
-Overwrite<-T
 
 # Adaptive capacity is classified thus: high = good, low = bad
-# High empowerment is better, lower tercile = bad, upper tercile = good 
-Levels<-c("low","medium","high")
-    
-data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
-    
-    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
+# A high proportion of people with bank accounts is better, lower tercile = bad, upper tercile = good 
+Invert=F
 
-    if((!file.exists(File))|Overwrite){
-        X<-data[[FIELD]]
-        vTert = quantile(X[], c(0:3/3),na.rm=T)
-        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
-        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
-        Terciles<-cut(X[],
-                      vTert, 
-                      include.lowest = T, 
-                      labels = c(0,1,2))
-        X[]<-as.numeric(Terciles)-1
-        levels(X)<-Levels  
-        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
-        X
-        }else{
-            terra::rast(File)
-    }
-}))
+
+
+data_terciles<-quantile_split(data,
+                              Labels=c("low","medium","high"),
+                              Invert=Invert,
+                              Overwrite=T,
+                              do_binary_splits=T,
+                              savedir=DataDirInt)
+
+terra::plot(c(data[[1]],data_terciles[[1]]))
 
 # create subdirectory for atlas specific files
 DHSDir2<-paste0(DataDir,"/atlas_dhs/intermediate/atlas_subset")
@@ -102,10 +71,15 @@ if(!dir.exists(DHSDir2)){
 }
 
 Files<-list.files(DataDirInt,full.names=T,recursive=F)
-Files<-grep("decisions_2015|index_2015",Files,value=T)
+Files<-grep("decisions_2015",Files,value=T)
 
 
 file.copy(Files, DHSDir2,overwrite=T)
+
+Files<-list.files(DHSDir2,full.names=T)
+file.rename(Files, gsub("decisions_2015_","Gender_Equity-",Files))
+Files<-list.files(DHSDir2,full.names=T)
+file.rename(Files, gsub("decisions_2015","Gender_Equity",Files))
 
 Files<-list.files(DHSDir2,".tif",full.names=T)
 Files<-Files[!grepl("aux",Files)]

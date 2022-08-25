@@ -32,7 +32,7 @@ OoklaDirs<-list.dirs(paste0(DataDir,"/atlas_ookla/raw"))
 OoklaDirs<-grep("20",OoklaDirs,value=T)
 Dates<-unlist(data.table::tstrsplit(OoklaDirs,"/",keep=7))
 
-Overwrite<-T
+Overwrite<-F
 mnp_stack<-terra::rast(lapply(1:length(OoklaDirs),FUN=function(i){
     File<-paste0(DataDirInt,"/",Dates[i],".tif")
     if(!file.exists(File)|Overwrite==T){
@@ -90,6 +90,7 @@ RMSE <- function(observed, predicted) {
 null <- RMSE(mean(mnp_points$med_d_mbps), mnp_points$med_d_mbps)
 null
 
+if(F){
 # Nearest Neighbour
 gs <- gstat(formula=med_d_mbps~1, locations=~x+y, data=dat2, nmax=5, set=list(idp = 0))
 nn <- interpolate(mnp_rast_pr, gs, debug.level=0)
@@ -118,7 +119,7 @@ for (k in 1:5) {
 
 mean(rmse)
 1 - (mean(rmse) / null)
-
+}
 # Inverse distance weighted interpolation
 
 # Optimize IDW parameters - https://rspatial.org/terra/analysis/4-interpolation.html
@@ -173,6 +174,7 @@ mean(rmse)
 1 - (mean(rmse) / null)
 
 # Standard IDW model without interpolation
+if(F){
 gs <- gstat::gstat(formula=med_d_mbps~1, locations=~x+y, data=dat2)
 mnp <- terra::interpolate(mnp_rast_pr, gs, debug.level=0)
 mnp<-mnp[[1]]
@@ -198,28 +200,46 @@ for (k in 1:5) {
 
 mean(rmse)
 1 - (mean(rmse) / null)
-
+}
 
 # Save data
 data<-idw_opt
 names(data)<-"dl_speed"
 
-# Reclass areas without signal
+# Reclass areas without ookla data
 data_m<-data*mask_da
 names(data_m)<-"dl_speed_masked"
 terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
 terra::writeRaster(data_m,paste0(DataDirInt,"/",names(data_m),".tif"),overwrite=T)
 
 # Generate manual breakpoints
-m_reclass<-cbind(c(0,0.000001,10.0000001),
+m_reclass<-cbind(c(0,0.000000000001,10.0000001),
                  c(0,10,99999999),
                  c(0,1,2))
 data_m_reclass<-terra::classify(data_m,m_reclass)
 levels(data_m_reclass)<-c("low","medium","high")
 names(data_m_reclass)<-paste(names(data_m_reclass),"_manclass")
-suppressWarnings(terra::writeRaster(data_m_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
 
 terra::plot(c(data,data_m,data_m_reclass))
+suppressWarnings(terra::writeRaster(data_m_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
+
+
+# Set 0 NA
+data_m_na<-data_m
+data_m_na[data_m_na==0]<-NA
+
+# Generate manual breakpoints
+m_reclass<-cbind(c(0,0.100000001,10.0000001),
+                 c(0.1,10,99999999),
+                 c(0,1,2))
+data_m_na_reclass<-terra::classify(data_m_na,m_reclass)
+levels(data_m_na_reclass)<-c("low","medium","high")
+names(data_m_na_reclass)<-paste(names(data_m_na_reclass),"_manclass")
+
+terra::plot(data_m_na_reclass)
+terra::plot(c(data,data_m,data_m_reclass,data_m_na_reclass))
+
+suppressWarnings(terra::writeRaster(data_m_na_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
                  
 # Generate terciles for non-masked data
 Overwrite<-T
