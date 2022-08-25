@@ -182,7 +182,7 @@ mnp<-mnp[[1]]
 mnp_rp<-terra::project(mnp,crs(mnp_rast))
 # Crop and mask to SSA
 mnp_rp<-terra::mask(terra::crop(mnp_rp,adm1_africa),adm1_africa)*water_mask
-names(mnp_rp)<-"dl_speed"
+names(mnp_rp)<-"Mobile_Internet_Access"
 terra::plot(mnp_rp)
 terra::plot(log10(mnp_rp))
 
@@ -204,13 +204,18 @@ mean(rmse)
 
 # Save data
 data<-idw_opt
-names(data)<-"dl_speed"
+names(data)<-"Mobile_Internet_Access"
+terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
 
 # Reclass areas without ookla data
 data_m<-data*mask_da
-names(data_m)<-"dl_speed_masked"
-terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
+names(data_m)<-"Mobile_Internet_Access_masked"
 terra::writeRaster(data_m,paste0(DataDirInt,"/",names(data_m),".tif"),overwrite=T)
+# Set 0 values to NA
+data_m_na<-data_m
+data_m_na[data_m_na==0]<-NA
+names(data_m_na)<-"Mobile_Internet_Access_coverage_only"
+terra::writeRaster(data_m,paste0(DataDirInt,"/",names(data_m_na),".tif"),overwrite=T)
 
 # Generate manual breakpoints
 m_reclass<-cbind(c(0,0.000000000001,10.0000001),
@@ -222,60 +227,24 @@ names(data_m_reclass)<-paste(names(data_m_reclass),"_manclass")
 
 terra::plot(c(data,data_m,data_m_reclass))
 suppressWarnings(terra::writeRaster(data_m_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
-
-
-# Set 0 NA
-data_m_na<-data_m
-data_m_na[data_m_na==0]<-NA
-
-# Generate manual breakpoints
-m_reclass<-cbind(c(0,0.100000001,10.0000001),
-                 c(0.1,10,99999999),
-                 c(0,1,2))
-data_m_na_reclass<-terra::classify(data_m_na,m_reclass)
-levels(data_m_na_reclass)<-c("low","medium","high")
-names(data_m_na_reclass)<-paste(names(data_m_na_reclass),"_manclass")
-
-terra::plot(data_m_na_reclass)
-terra::plot(c(data,data_m,data_m_reclass,data_m_na_reclass))
-
-suppressWarnings(terra::writeRaster(data_m_na_reclass,file=paste0(DataDirInt,"/",names(data_m_reclass),".tif"),overwrite=T))
-                 
+                
 # Generate terciles for non-masked data
-Overwrite<-T
 # Adaptive capacity is classified thus: high = good, low = bad
 # High download speed is better, lower tercile = bad, upper tercile = good 
 Invert<-F
 
-Labels<-c("low","medium","high")
-Values<-c(0,1,2)
+devtools::source_url("https://github.com/AdaptationAtlas/adaptive_capacity/blob/main/R/functions.R?raw=TRUE")
 
-data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
-    
-    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
-    
-    if((!file.exists(File))|Overwrite){
-        X<-data[[FIELD]]
-        vTert = quantile(X[], c(0:3/3),na.rm=T)
+data_terciles<-quantile_split(data,
+                              Labels=c("low","medium","high"),
+                              Invert=Invert,
+                              Overwrite=T,
+                              do_binary_splits=F,
+                              savedir=DataDirInt)
 
-       Levels<-if(Invert){Labels[length(Labels):1]}else{Labels}
-                
-        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
-        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
-        
-        Terciles<-cut(X[],
-                      vTert, 
-                      include.lowest = T, 
-                      labels = Values)
-        
-        X[]<-as.numeric(Terciles)-1
-        levels(X)<-  Levels  
-        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
-        X
-        }else{
-            terra::rast(File)
-    }
-}))
+Files<-list.files(DataDirInt,".tif",full.names=T)
+Files<-Files[!grepl("aux",Files)]
+terra::plot(terra::rast(Files))
 
 # Generate 2 classes for masked data
 Labels<-c("medium","high")
@@ -302,5 +271,4 @@ plot(X)
 suppressWarnings(terra::writeRaster(X,file=paste0(DataDirInt,"/",names(X),".tif"),overwrite=T))
 
 terra::plot(c(data,data_terciles,data_m_reclass,X))
-
 
