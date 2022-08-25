@@ -87,6 +87,7 @@ idw_opt <- terra::interpolate(dat_rast, m, debug.level=0)
 idw_opt<-terra::resample(idw_opt,base_raster,method="average")
 idw_opt<-terra::mask(terra::crop(idw_opt,adm1_africa),adm1_africa)*water_mask
 
+if(F){
 # Standard IDW model without interpolation
 gs <- gstat::gstat(formula=IWI~1, locations=~x+y, data=dat2)
 idw <- terra::interpolate(dat_rast, gs, debug.level=0)
@@ -126,67 +127,28 @@ mean(rmse[[1]])
 # IDW
 mean(rmse[[2]])
 1 - (mean(rmse[[2]]) / null)
-
+}
 
 data<-idw_opt[[1]]
-names(data)<-"poverty_IWI"
+names(data)<-"Wealth"
 terra::writeRaster(data,paste0(DataDirInt,"/",names(data),".tif"),overwrite=T)
 
 # Generate terciles
-Overwrite<-T
 # Adaptive capacity is classified thus: high = good, low = bad
 # High wealth is better, lower tercile = bad, upper tercile = good 
 Invert<-F
 
-Labels<-c("low","medium","high")
-Values<-c(0,1,2)
+devtools::source_url("https://github.com/AdaptationAtlas/adaptive_capacity/blob/main/R/functions.R?raw=TRUE")
 
-data_terciles<-terra::rast(lapply(names(data),FUN=function(FIELD){
-    
-    File<-paste0(DataDirInt,"/",FIELD,"_terciles.tif")
-    
-    if((!file.exists(File))|Overwrite){
-        X<-data[[FIELD]]
-        vTert = quantile(X[], c(0:3/3),na.rm=T)
+data_terciles<-quantile_split(data,
+                              Labels=c("low","medium","high"),
+                              Invert=Invert,
+                              Overwrite=T,
+                              do_binary_splits=T,
+                              savedir=DataDirInt)
 
-       Levels<-if(Invert){Labels[length(Labels):1]}else{Labels}
-                
-        Intervals<-data.frame(Intervals=apply(cbind(Levels,round(vTert[1:3],3),round(vTert[2:4],3)),1,paste,collapse="-"))
-        write.csv(Intervals,file=paste0(DataDirInt,"/",FIELD,"_terciles.csv"),row.names=F)
-        
-        Terciles<-cut(X[],
-                      vTert, 
-                      include.lowest = T, 
-                      labels = Values)
-        
-        X[]<-as.numeric(Terciles)-1
-        levels(X)<-  Levels  
-        suppressWarnings(terra::writeRaster(X,file=File,overwrite=T))
-        X
-        }else{
-            terra::rast(File)
-    }
-}))
+Files<-list.files(DataDirInt,".tif",full.names=T)
+Files<-Files[!grepl("aux",Files)]
+terra::plot(terra::rast(Files))
 
-terra::plot(c(data,data_terciles))
-
-hist(data[])
-
-
-# *********the below kriging crashes the kernel**********
-# Fit a variogram: Use gstat to create an emperical variogram ‘v’
-gs<- gstat::gstat(formula=IWI~1, locations=~x+y, data=dat2)
-v <- gstat::variogram(gs,width=100)
-plot(v)
-
-fve <- gstat::fit.variogram(v, gstat::vgm(psill=145, "Sph", range=2000,nugget=75))
-
-plot(gstat::variogramLine(fve, 3000), type='l', ylim=c(0,200) ,col='blue', lwd=2)
-points(v[,2:3], pch=20, col='red')
-
-# Ordinary kriging: Use variogram fve in a kriging interpolation
-k <- gstat::gstat(formula=IWI~1, locations=~x+y, data=dat2, model=fve)
-
-# predicted values
-kp <- interpolate(dat_rast, k, debug.level=0)
 
